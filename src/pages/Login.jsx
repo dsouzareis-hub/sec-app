@@ -15,39 +15,47 @@ export default function Login() {
 
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+const handleLogin = async (e) => {
+  e.preventDefault();
 
-    if (loading) return;
-    setLoading(true);
-    setErro("");
+  if (loading) return;
+  setLoading(true);
+  setErro("");
 
-    try {
-      if (!email || !senha) {
-        setErro("Preencha todos os campos");
-        setLoading(false);
-        return;
-      }
+  try {
+    // 🔐 1. chama Edge Function (ANTI BRUTE FORCE)
+    const check = await fetch("https://kxgkgrkkicjcfnovachm.supabase.co/login-protect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: senha,
-      });
-
-      if (error) {
-        setErro("Credenciais inválidas");
-        setLoading(false);
-        return;
-      }
-
-      navigate("/home");
-
-    } catch (err) {
-      setErro("Erro inesperado");
-    } finally {
+    if (check.status === 429) {
+      setErro("Muitas tentativas. Tente novamente mais tarde.");
       setLoading(false);
+      return;
     }
-  };
+
+    // 🔐 2. login normal
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha,
+    });
+
+    if (error) {
+      setErro("Credenciais inválidas");
+      setLoading(false);
+      return;
+    }
+
+    navigate("/home");
+
+  } catch (err) {
+    setErro("Erro inesperado");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <>
