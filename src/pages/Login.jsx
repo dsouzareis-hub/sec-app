@@ -81,26 +81,45 @@ export default function Login() {
         return;
       }
 
+      // NORMALIZAÇÃO
+      const emailNormalizado = email.trim().toLowerCase();
+      const senhaNormalizada = senha.trim();
+
+      // VALIDAÇÃO
+      const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado);
+
+      if (!emailValido) {
+        setErro("Email inválido");
+        setLoading(false);
+        return;
+      }
+
+      if (senhaNormalizada.length < 6) {
+        setErro("Senha inválida");
+        setLoading(false);
+        return;
+      }
+
       const check = await fetch(
         "https://kxgkgrkkicjcfnovachm.functions.supabase.co/login-protect",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: emailNormalizado }),
         }
       );
 
       if (check.status === 429) {
         const bloqueio = Date.now() + 60 * 1000;
         setBloqueadoAte(bloqueio);
-        setErro("Muitas tentativas. Aguarde 60s.");
+        setErro("");
         setLoading(false);
         return;
       }
 
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password: senha,
+        email: emailNormalizado,
+        password: senhaNormalizada,
       });
 
       if (error) {
@@ -110,7 +129,7 @@ export default function Login() {
         if (novasTentativas >= 3) {
           const bloqueio = Date.now() + 60 * 1000;
           setBloqueadoAte(bloqueio);
-          setErro("Muitas tentativas. Aguarde 60s.");
+          setErro("");
         } else {
           setErro(`Credenciais inválidas (${novasTentativas}/3)`);
         }
@@ -158,7 +177,7 @@ export default function Login() {
           </button>
         </form>
 
-                {erro && <p className="erro">{erro}</p>}
+        {erro && !bloqueadoAte && <p className="erro">{erro}</p>}
 
         {bloqueadoAte && tempoRestante > 0 && (
           <p className="erro">
