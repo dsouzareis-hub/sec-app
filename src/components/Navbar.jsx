@@ -1,42 +1,51 @@
 import "../styles/navbar.css";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "../services/supabase";
 import logo from "../images/logo_senai.jpg";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  // 🔐 verifica sessão no backend PHP
   useEffect(() => {
-    // 🔐 pega sessão atual
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const checkSession = async () => {
+      try {
+        const res = await fetch("http://localhost/api/me.php", {
+          credentials: "include",
+        });
 
-      setSession(session);
-    };
+        if (!res.ok) {
+          setSession(null);
+          setLoading(false);
+          return;
+        }
 
-    getSession();
-
-    // 🔴 escuta login/logout em tempo real
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
+        const data = await res.json();
+        setSession(data.user);
+      } catch (err) {
+        setSession(null);
+      } finally {
+        setLoading(false);
       }
-    );
-
-    return () => {
-      listener.subscription.unsubscribe();
     };
+
+    checkSession();
   }, []);
 
+  // 🔴 logout PHP (sessão server-side)
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.clear();
-    window.location.href = "/";
+    await fetch("http://localhost/api/logout.php", {
+      method: "POST",
+      credentials: "include",
+    });
+
+    setSession(null);
+    navigate("/");
   };
+
+  if (loading) return null;
 
   return (
     <nav className="navbar">

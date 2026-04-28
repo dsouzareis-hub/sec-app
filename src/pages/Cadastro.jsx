@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabase";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "../styles/index.css";
@@ -15,15 +14,11 @@ export default function Cadastro() {
 
   const navigate = useNavigate();
 
-  const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-
   const handleCadastro = async (e) => {
     e.preventDefault();
 
     if (loading) return;
     setLoading(true);
-
-    await delay(1000);
 
     try {
       if (!nome || !email || !senha) {
@@ -38,29 +33,35 @@ export default function Cadastro() {
         return;
       }
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: senha,
-      });
-
-if (error) {
-  console.error(error);
-  alert(error.message);
-  setLoading(false);
-  return;
-}
-
-      const { error: dbError } = await supabase.from("usuarios").insert([
-        {
+      const response = await fetch("http://localhost/api/cadastro.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           nome,
           email,
-          user_id: data.user.id,
-          data: new Date(),
-        },
-      ]);
+          senha,
+        }),
+      });
 
-      if (dbError) {
-        alert("Erro ao salvar dados");
+      // 🔥 IMPORTANTE: pega texto bruto primeiro
+      const text = await response.text();
+      console.log("RESPOSTA BRUTA PHP:", text);
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        console.error("Resposta não é JSON válido:", text);
+        alert("Erro no servidor (PHP não retornou JSON)");
+        setLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        alert(data.error || "Erro ao cadastrar");
         setLoading(false);
         return;
       }
@@ -69,6 +70,7 @@ if (error) {
       navigate("/");
 
     } catch (err) {
+      console.error("ERRO FRONT:", err);
       alert("Erro inesperado");
     } finally {
       setLoading(false);
@@ -107,9 +109,10 @@ if (error) {
 
           <p className="link-login">
             Já possui conta?{" "}
-            <span onClick={() => navigate("/")}>Fazer login</span>
+            <span onClick={() => navigate("/")}>
+              Fazer login
+            </span>
           </p>
-          
         </form>
       </div>
 

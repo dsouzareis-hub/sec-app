@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabase";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "../styles/index.css";
@@ -13,66 +12,14 @@ export default function Login() {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [tentativas, setTentativas] = useState(0);
-  const [bloqueadoAte, setBloqueadoAte] = useState(null);
-  const [tempoRestante, setTempoRestante] = useState(0);
-
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const bloqueio = localStorage.getItem("bloqueadoAte");
-    const tent = localStorage.getItem("tentativas");
-
-    if (bloqueio) setBloqueadoAte(Number(bloqueio));
-    if (tent) setTentativas(Number(tent));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("tentativas", tentativas);
-
-    if (bloqueadoAte) {
-      localStorage.setItem("bloqueadoAte", bloqueadoAte);
-    }
-  }, [tentativas, bloqueadoAte]);
-
-  useEffect(() => {
-    if (!bloqueadoAte) return;
-
-    const interval = setInterval(() => {
-      const restante = Math.max(0, Math.floor((bloqueadoAte - Date.now()) / 1000));
-      setTempoRestante(restante);
-
-      if (restante <= 0) {
-        setBloqueadoAte(null);
-        setTentativas(0);
-        localStorage.removeItem("bloqueadoAte");
-        localStorage.removeItem("tentativas");
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [bloqueadoAte]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
     if (loading) return;
-    setErro("");
-
-    if (bloqueadoAte && Date.now() < bloqueadoAte) {
-      const novoBloqueio = bloqueadoAte + 30 * 1000;
-
-      setBloqueadoAte(novoBloqueio);
-      localStorage.setItem("bloqueadoAte", novoBloqueio);
-
-      const restante = Math.floor((novoBloqueio - Date.now()) / 1000);
-      setTempoRestante(restante);
-
-      setErro(`Aguarde ${restante}s para tentar novamente`);
-      return;
-    }
-
     setLoading(true);
+    setErro("");
 
     try {
       if (!email || !senha) {
@@ -81,71 +28,33 @@ export default function Login() {
         return;
       }
 
-      // NORMALIZAÇÃO
       const emailNormalizado = email.trim().toLowerCase();
       const senhaNormalizada = senha.trim();
 
-      // VALIDAÇÃO
-      const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado);
-
-      if (!emailValido) {
-        setErro("Email inválido");
-        setLoading(false);
-        return;
-      }
-
-      if (senhaNormalizada.length < 6) {
-        setErro("Senha inválida");
-        setLoading(false);
-        return;
-      }
-
-      const check = await fetch(
-        "https://kxgkgrkkicjcfnovachm.functions.supabase.co/login-protect",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: emailNormalizado }),
-        }
-      );
-
-      if (check.status === 429) {
-        const bloqueio = Date.now() + 60 * 1000;
-        setBloqueadoAte(bloqueio);
-        setErro("");
-        setLoading(false);
-        return;
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email: emailNormalizado,
-        password: senhaNormalizada,
+      const response = await fetch("http://localhost/api/login.php", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: emailNormalizado,
+          senha: senhaNormalizada,
+        }),
       });
 
-      if (error) {
-        const novasTentativas = tentativas + 1;
-        setTentativas(novasTentativas);
+      const data = await response.json();
 
-        if (novasTentativas >= 3) {
-          const bloqueio = Date.now() + 60 * 1000;
-          setBloqueadoAte(bloqueio);
-          setErro("");
-        } else {
-          setErro(`Credenciais inválidas (${novasTentativas}/3)`);
-        }
-
+      if (!response.ok) {
+        setErro(data.error || "Erro ao fazer login");
         setLoading(false);
         return;
       }
-
-      setTentativas(0);
-      setBloqueadoAte(null);
-      localStorage.removeItem("tentativas");
-      localStorage.removeItem("bloqueadoAte");
 
       navigate("/home");
 
-    } catch {
+    } catch (err) {
+      console.error(err);
       setErro("Erro inesperado");
     } finally {
       setLoading(false);
@@ -177,13 +86,7 @@ export default function Login() {
           </button>
         </form>
 
-        {erro && !bloqueadoAte && <p className="erro">{erro}</p>}
-
-        {bloqueadoAte && tempoRestante > 0 && (
-          <p className="erro">
-            Aguarde {tempoRestante}s para tentar novamente
-          </p>
-        )}
+        {erro && <p className="erro">{erro}</p>}
 
         <div className="link-cadastro">
           <p>Não possui conta?</p>

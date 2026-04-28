@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabase";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "../styles/index.css";
@@ -16,78 +15,80 @@ export default function Home() {
 
   const navigate = useNavigate();
 
+  // 🔐 PROTEÇÃO DE ROTA
   useEffect(() => {
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("http://localhost/api/me.php", {
+          credentials: "include",
+        });
 
-      if (!session) {
-        navigate("/");
-        return;
-      }
-
-      setLoading(false);
-      fetchItens();
-    };
-
-    checkSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!session) {
+        if (!res.ok) {
           navigate("/");
+          return;
         }
-      }
-    );
 
-    return () => {
-      listener.subscription.unsubscribe();
+        setLoading(false);
+        fetchItens();
+      } catch {
+        navigate("/");
+      }
     };
+
+    checkAuth();
   }, [navigate]);
 
+  // 📦 LISTAR ITENS
   const fetchItens = async () => {
-    const { data, error } = await supabase.from("itens").select("*");
+    const res = await fetch("http://localhost/api/itens.php", {
+      credentials: "include",
+    });
 
-    if (error) {
-      console.log("SELECT ERROR:", error);
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.log("GET ERROR:", data);
       return;
     }
 
     setItens(data);
   };
 
+  // ➕ CRIAR / EDITAR
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      navigate("/");
-      return;
-    }
-
     if (editandoId) {
-      const { error } = await supabase
-        .from("itens")
-        .update({ nome, descricao })
-        .eq("id", editandoId);
+      const res = await fetch("http://localhost/api/itens.php", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editandoId,
+          nome,
+          descricao,
+        }),
+      });
 
-      if (error) console.log("UPDATE ERROR:", error);
+      const data = await res.json();
+
+      if (!res.ok) console.log("UPDATE ERROR:", data);
 
       setEditandoId(null);
     } else {
-      const { error } = await supabase.from("itens").insert([
-        {
+      const res = await fetch("http://localhost/api/itens.php", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           nome,
           descricao,
-          user_id: user.id, // 🔥 ESSENCIAL para RLS
-        },
-      ]);
+        }),
+      });
 
-      if (error) console.log("INSERT ERROR:", error);
+      const data = await res.json();
+
+      if (!res.ok) console.log("INSERT ERROR:", data);
     }
 
     setNome("");
@@ -95,19 +96,25 @@ export default function Home() {
     fetchItens();
   };
 
+  // ✏️ EDITAR
   const handleEdit = (item) => {
     setNome(item.nome);
     setDescricao(item.descricao);
     setEditandoId(item.id);
   };
 
+  // 🗑 DELETE
   const handleDelete = async (id) => {
-    const { error } = await supabase
-      .from("itens")
-      .delete()
-      .eq("id", id);
+    const res = await fetch("http://localhost/api/itens.php", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
 
-    if (error) console.log("DELETE ERROR:", error);
+    const data = await res.json();
+
+    if (!res.ok) console.log("DELETE ERROR:", data);
 
     fetchItens();
   };
