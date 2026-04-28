@@ -23,15 +23,20 @@ export default function Home() {
           credentials: "include",
         });
 
+        const data = await res.json();
+
         if (!res.ok) {
+          console.log("AUTH ERROR:", data);
           navigate("/");
           return;
         }
 
-        setLoading(false);
         fetchItens();
-      } catch {
+      } catch (err) {
+        console.log("AUTH FETCH ERROR:", err);
         navigate("/");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -40,60 +45,69 @@ export default function Home() {
 
   // 📦 LISTAR ITENS
   const fetchItens = async () => {
-    const res = await fetch("http://localhost/api/itens.php", {
-      credentials: "include",
-    });
+    try {
+      const res = await fetch("http://localhost/api/itens.php", {
+        credentials: "include",
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      console.log("GET ERROR:", data);
-      return;
+      if (!res.ok) {
+        console.log("GET ERROR:", data);
+        return;
+      }
+
+      // 🔥 CORREÇÃO PRINCIPAL AQUI
+      setItens(data.data || []);
+    } catch (err) {
+      console.log("FETCH ITENS ERROR:", err);
     }
-
-    setItens(data);
   };
 
   // ➕ CRIAR / EDITAR
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (editandoId) {
-      const res = await fetch("http://localhost/api/itens.php", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editandoId,
-          nome,
-          descricao,
-        }),
-      });
+    try {
+      if (editandoId) {
+        const res = await fetch("http://localhost/api/itens.php", {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editandoId,
+            nome,
+            descricao,
+          }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) console.log("UPDATE ERROR:", data);
+        if (!res.ok) console.log("UPDATE ERROR:", data);
 
-      setEditandoId(null);
-    } else {
-      const res = await fetch("http://localhost/api/itens.php", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome,
-          descricao,
-        }),
-      });
+        setEditandoId(null);
+      } else {
+        const res = await fetch("http://localhost/api/itens.php", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nome,
+            descricao,
+          }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) console.log("INSERT ERROR:", data);
+        if (!res.ok) console.log("INSERT ERROR:", data);
+      }
+
+      setNome("");
+      setDescricao("");
+      fetchItens();
+    } catch (err) {
+      console.log("SUBMIT ERROR:", err);
     }
-
-    setNome("");
-    setDescricao("");
-    fetchItens();
   };
 
   // ✏️ EDITAR
@@ -105,21 +119,26 @@ export default function Home() {
 
   // 🗑 DELETE
   const handleDelete = async (id) => {
-    const res = await fetch("http://localhost/api/itens.php", {
-      method: "DELETE",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    try {
+      const res = await fetch("http://localhost/api/itens.php", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) console.log("DELETE ERROR:", data);
+      if (!res.ok) console.log("DELETE ERROR:", data);
 
-    fetchItens();
+      fetchItens();
+    } catch (err) {
+      console.log("DELETE FETCH ERROR:", err);
+    }
   };
 
-  if (loading) return null;
+  // ⏳ loading melhor
+  if (loading) return <p>Carregando...</p>;
 
   return (
     <>

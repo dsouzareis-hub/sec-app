@@ -18,7 +18,6 @@ export default function Navbar() {
 
         if (!res.ok) {
           setSession(null);
-          setLoading(false);
           return;
         }
 
@@ -36,13 +35,20 @@ export default function Navbar() {
 
   // 🔴 logout PHP (sessão server-side)
   const handleLogout = async () => {
-    await fetch("http://localhost/api/logout.php", {
-      method: "POST",
-      credentials: "include",
-    });
+    try {
+      await fetch("http://localhost/api/logout.php", {
+        method: "POST",
+        credentials: "include",
+      });
 
-    setSession(null);
-    navigate("/");
+      // limpa estado local imediatamente
+      setSession(null);
+
+      // redireciona
+      navigate("/");
+    } catch (err) {
+      console.error("Erro ao fazer logout:", err);
+    }
   };
 
   if (loading) return null;
