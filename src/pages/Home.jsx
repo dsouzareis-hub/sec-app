@@ -15,7 +15,6 @@ export default function Home() {
 
   const navigate = useNavigate();
 
-  // 🔐 PROTEÇÃO DE ROTA
   useEffect(() => {
     const checkAuth = async () => {
       try {

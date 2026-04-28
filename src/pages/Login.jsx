@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -12,12 +12,28 @@ export default function Login() {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 🔥 NOVO
+  const [bloqueadoTempo, setBloqueadoTempo] = useState(0);
+
   const navigate = useNavigate();
+
+  // 🔥 CONTADOR REGRESSIVO
+  useEffect(() => {
+    if (bloqueadoTempo <= 0) return;
+
+    const interval = setInterval(() => {
+      setBloqueadoTempo((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [bloqueadoTempo]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (loading) return;
+    // 🔥 BLOQUEIO NO FRONT
+    if (loading || bloqueadoTempo > 0) return;
+
     setLoading(true);
     setErro("");
 
@@ -47,6 +63,12 @@ export default function Login() {
 
       if (!response.ok) {
         setErro(data.error || "Erro ao fazer login");
+
+        // 🔥 PEGA TEMPO DO BACKEND
+        if (data.retry_after) {
+          setBloqueadoTempo(data.retry_after);
+        }
+
         setLoading(false);
         return;
       }
@@ -81,8 +103,15 @@ export default function Login() {
             onChange={(e) => setSenha(e.target.value)}
           />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Entrando..." : "Entrar"}
+          <button
+            type="submit"
+            disabled={loading || bloqueadoTempo > 0}
+          >
+            {bloqueadoTempo > 0
+              ? `Aguarde ${bloqueadoTempo}s`
+              : loading
+              ? "Entrando..."
+              : "Entrar"}
           </button>
         </form>
 
