@@ -15,6 +15,7 @@ export default function Home() {
 
   const navigate = useNavigate();
 
+  // 🔐 PROTEÇÃO
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -22,7 +23,16 @@ export default function Home() {
           credentials: "include",
         });
 
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          console.log("AUTH NÃO É JSON:", text);
+          navigate("/");
+          return;
+        }
 
         if (!res.ok) {
           console.log("AUTH ERROR:", data);
@@ -42,21 +52,28 @@ export default function Home() {
     checkAuth();
   }, [navigate]);
 
-  // 📦 LISTAR ITENS
+  // 📦 LISTAR
   const fetchItens = async () => {
     try {
       const res = await fetch("http://localhost/api/itens.php", {
         credentials: "include",
       });
 
-      const data = await res.json();
+      const text = await res.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.log("GET NÃO É JSON:", text);
+        return;
+      }
 
       if (!res.ok) {
         console.log("GET ERROR:", data);
         return;
       }
 
-      // 🔥 CORREÇÃO PRINCIPAL AQUI
       setItens(data.data || []);
     } catch (err) {
       console.log("FETCH ITENS ERROR:", err);
@@ -68,41 +85,38 @@ export default function Home() {
     e.preventDefault();
 
     try {
-      if (editandoId) {
-        const res = await fetch("http://localhost/api/itens.php", {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: editandoId,
-            nome,
-            descricao,
-          }),
-        });
+      const url = "http://localhost/api/itens.php";
 
-        const data = await res.json();
+      const res = await fetch(url, {
+        method: editandoId ? "PUT" : "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editandoId,
+          nome,
+          descricao,
+        }),
+      });
 
-        if (!res.ok) console.log("UPDATE ERROR:", data);
+      const text = await res.text();
 
-        setEditandoId(null);
-      } else {
-        const res = await fetch("http://localhost/api/itens.php", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            nome,
-            descricao,
-          }),
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) console.log("INSERT ERROR:", data);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.log("SUBMIT NÃO É JSON:", text);
+        return;
       }
 
+      if (!res.ok) {
+        console.log("SUBMIT ERROR:", data);
+        return;
+      }
+
+      setEditandoId(null);
       setNome("");
       setDescricao("");
+
       fetchItens();
     } catch (err) {
       console.log("SUBMIT ERROR:", err);
@@ -126,9 +140,20 @@ export default function Home() {
         body: JSON.stringify({ id }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
 
-      if (!res.ok) console.log("DELETE ERROR:", data);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.log("DELETE NÃO É JSON:", text);
+        return;
+      }
+
+      if (!res.ok) {
+        console.log("DELETE ERROR:", data);
+        return;
+      }
 
       fetchItens();
     } catch (err) {
@@ -136,7 +161,6 @@ export default function Home() {
     }
   };
 
-  // ⏳ loading melhor
   if (loading) return <p>Carregando...</p>;
 
   return (
